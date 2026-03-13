@@ -32,7 +32,7 @@ def get_open_prs(repo_name):
             "author": pr.user.login
         })
 
-    return pr_data
+    return  pr_data
 
 
 def get_pr_files(repo_name, pr_number):
