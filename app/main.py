@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from app.github_service import get_open_prs, get_pr_files
+from fastapi import FastAPI, Request
+from app.github_service import get_open_prs, get_pr_files, comment_on_pr
 from app.reviewer import review_code
 
 app = FastAPI()
@@ -10,36 +10,40 @@ def home():
     return {"message": "AI PR Reviewer Running"}
 
 
-@app.get("/prs")
-def get_prs(repo_name: str):
-    prs = get_open_prs(repo_name)
+@app.post("/webhook")
+async def github_webhook(request: Request):
 
-    return {
-        "repository": repo_name,
-        "open_prs": prs
-    }
+    payload = await request.json()
 
+    # Trigger only when PR is opened
+    if payload["action"] == "opened":
 
-@app.post("/review-pr")
-def review_pr(repo_name: str, pr_number: int):
+        repo_name = payload["repository"]["full_name"]
+        pr_number = payload["pull_request"]["number"]
 
-    files = get_pr_files(repo_name, pr_number)
+        files = get_pr_files(repo_name, pr_number)
 
-    reviews = []
+        review_comments = []
 
-    for file in files:
+        for file in files:
 
-        code_changes = file["patch"]
+            filename = file.get("filename")
+            patch = file.get("patch")
 
-        ai_review = review_code(code_changes)
+            if not filename.endswith(".py"):
+                continue
 
-        reviews.append({
-            "file_name": file["filename"],
-            "review": ai_review
-        })
+            if patch is None:
+                continue
 
-    return {
-        "repository": repo_name,
-        "pr_number": pr_number,
-        "reviews": reviews
-    }
+            ai_review = review_code(patch)
+
+            review_comments.append(
+                f"### File: {filename}\n{ai_review}\n"
+            )
+
+        final_comment = "\n".join(review_comments)
+
+        comment_on_pr(repo_name, pr_number, final_comment)
+
+    return {"status": "Webhook processed"}
