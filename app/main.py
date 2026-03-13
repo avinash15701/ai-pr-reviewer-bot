@@ -5,8 +5,9 @@ import logging
 
 app = FastAPI()
 
-# Optional: log webhook payloads for debugging
-logging.basicConfig(level=logging.INFO)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
 
 @app.get("/")
 def home():
@@ -15,20 +16,26 @@ def home():
 
 @app.post("/webhook")
 async def github_webhook(request: Request):
+    """
+    GitHub Webhook handler for pull request events.
+    Automatically reviews Python files in PRs using AI and comments back on the PR.
+    """
     try:
         payload = await request.json()
-    except Exception:
+    except Exception as e:
+        logging.error(f"Failed to parse JSON payload: {e}")
         return {"status": "Invalid JSON payload"}
 
     # Log payload for debugging
-    logging.info(f"Webhook payload received: {payload}")
+    logging.info(f"Webhook payload received: action={payload.get('action')}")
 
-    # Only process PR events
+    # Only process pull request events
     action = payload.get("action")
     if action not in ["opened", "synchronize"]:
+        logging.info(f"Ignored action: {action}")
         return {"status": f"Ignored action: {action}"}
 
-    # Safely get repository and PR number
+    # Extract repository and PR information safely
     repo = payload.get("repository", {})
     pr = payload.get("pull_request", {})
 
@@ -36,10 +43,18 @@ async def github_webhook(request: Request):
     pr_number = pr.get("number")
 
     if not repo_name or not pr_number:
+        logging.warning("Missing repository or PR number in payload")
         return {"status": "Missing repository or PR number"}
 
-    # Get files from the PR
-    files = get_pr_files(repo_name, pr_number)
+    logging.info(f"Processing PR #{pr_number} in repo {repo_name}")
+
+    try:
+        # Get list of changed files in the PR
+        files = get_pr_files(repo_name, pr_number)
+    except Exception as e:
+        logging.error(f"Failed to fetch PR files: {e}")
+        return {"status": "Failed to fetch PR files"}
+
     review_comments = []
 
     for file in files:
@@ -47,22 +62,25 @@ async def github_webhook(request: Request):
         patch = file.get("patch")
 
         # Only review Python files with code changes
-        if not filename.endswith(".py") or patch is None:
-            continue
+        if filename and filename.endswith(".py") and patch:
+            try:
+                ai_review = review_code(patch)
+                if ai_review.strip():  # Only include non-empty reviews
+                    review_comments.append(f"### File: {filename}\n{ai_review}\n")
+            except Exception as e:
+                logging.error(f"AI review failed for {filename}: {e}")
 
-        ai_review = review_code(patch)
-        review_comments.append(f"### File: {filename}\n{ai_review}\n")
-
-        
-
-    # Combine all file reviews
+    # Combine all file reviews into a single comment
     final_comment = "\n".join(review_comments)
 
-    # Post comment on PR if there are reviews
     if final_comment:
-        comment_on_pr(repo_name, pr_number, final_comment)
-        logging.info(f"Posted AI review on PR #{pr_number}")
+        try:
+            comment_on_pr(repo_name, pr_number, final_comment)
+            logging.info(f"Posted AI review on PR #{pr_number}")
+        except Exception as e:
+            logging.error(f"Failed to post comment on PR #{pr_number}: {e}")
+            return {"status": f"Failed to post comment on PR #{pr_number}"}
     else:
         logging.info(f"No Python changes to review on PR #{pr_number}")
 
-    return {"status": "Webhook processed"}
+    return {"status": "The Webhook processed successfully"}
