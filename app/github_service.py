@@ -52,3 +52,7 @@ def comment_on_pr(repo_name, pr_number, comment):
     pr = repo.get_pull(pr_number)
 
     pr.create_issue_comment(comment)
+
+
+def add (a, b):
+    return a + b
