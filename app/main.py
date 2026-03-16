@@ -11,7 +11,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 @app.get("/")
 def home():
-    return {"message": "AI PR Reviewer Running"}
+    return {"message": "AI PR R"
+    ""
+    "eviewer Running"}
 
 
 @app.post("/webhook")
