@@ -11,9 +11,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 @app.get("/")
 def home():
-    return {"message": "AI PR R"
-    ""
-    "eviewer Running"}
+    return {"message": "AI PR Reviewer Running"}
 
 
 @app.post("/webhook")
@@ -67,6 +65,7 @@ async def github_webhook(request: Request):
         if filename and filename.endswith(".py") and patch:
             try:
                 ai_review = review_code(patch)
+
                 if ai_review.strip():  # Only include non-empty reviews
                     review_comments.append(f"### File: {filename}\n{ai_review}\n")
             except Exception as e:
