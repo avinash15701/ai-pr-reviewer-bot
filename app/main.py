@@ -15,7 +15,7 @@ def home():
 
 
 @app.post("/webhook")
-async def github_webhook(request: Request):
+async def github_webhook(request: Request , methods = ["GET", "POST"]):
     """
     GitHub Webhook handler for pull request events.
     Automatically reviews Python files in PRs using AI and comments back on the PR.

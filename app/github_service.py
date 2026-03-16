@@ -56,3 +56,7 @@ def comment_on_pr(repo_name, pr_number, comment):
 
 def add (a, b):
     return a + b
+
+
+def multiplication(a, b, c):
+    return a + b
