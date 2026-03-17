@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from app.github_service import get_open_prs, get_pr_files, comment_on_pr
+from app.github_service import get_pr_files, comment_on_pr
 from app.reviewer import review_code
 import logging
 
