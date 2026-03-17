@@ -14,7 +14,6 @@ def get_repo(repo_name):
 
 
 def get_open_prs(repo_name):
-
     repo = get_repo(repo_name)
     prs = repo.get_pulls(state="open")
 
@@ -31,7 +30,6 @@ def get_open_prs(repo_name):
 
 
 def get_pr_files(repo_name, pr_number):
-
     repo = get_repo(repo_name)
     pr = repo.get_pull(pr_number)
 
@@ -47,15 +45,16 @@ def get_pr_files(repo_name, pr_number):
 
 
 def comment_on_pr(repo_name, pr_number, comment):
-
     repo = get_repo(repo_name)
     pr = repo.get_pull(pr_number)
 
     pr.create_issue_comment(comment)
 
 
-def add (a, b):
+# Example utility functions (for testing)
+def add(a, b):
     return a + b
+
 
 def multiplication(a, b):
     return a * b
