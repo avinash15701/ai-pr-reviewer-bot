@@ -28,10 +28,9 @@ async def github_webhook(request: Request):
         return {"status": "Invalid JSON payload"}
 
     action = payload.get("action")
-
     logging.info(f"Webhook payload received: action={action}")
 
-    # Only process PR open or new commits
+    # Only process PR opened or updated
     if action not in ["opened", "synchronize"]:
         logging.info(f"Ignored action: {action}")
         return {"status": f"Ignored action: {action}"}
@@ -48,6 +47,7 @@ async def github_webhook(request: Request):
 
     logging.info(f"Processing PR #{pr_number} in repo {repo_name}")
 
+    # Get changed files in PR
     try:
         files = get_pr_files(repo_name, pr_number)
     except Exception as e:
@@ -62,28 +62,45 @@ async def github_webhook(request: Request):
 
         logging.info(f"Detected file: {filename}")
 
-        if filename and filename.endswith(".py"):
+        # Ignore compiled/cache files
+        if not filename or not filename.endswith(".py") or "__pycache__" in filename:
+            logging.info(f"Skipping non-python file: {filename}")
+            continue
 
-            if not patch:
-                logging.info(f"Skipping {filename} (no patch available)")
+        if not patch:
+            logging.info(f"Skipping {filename} (no patch available)")
+            continue
+
+        try:
+            # Extract only added lines
+            clean_code = "\n".join(
+                line[1:]
+                for line in patch.split("\n")
+                if line.startswith("+") and not line.startswith("+++")
+            )
+
+            if not clean_code.strip():
+                logging.info(f"No meaningful code changes in {filename}")
                 continue
 
-            try:
-                # Extract only added lines from patch
-                clean_code = "\n".join(
-                    line[1:] for line in patch.split("\n") if line.startswith("+")
-                )
+            logging.info(f"Code sent to AI for {filename}:\n{clean_code}")
 
-                ai_review = review_code(clean_code)
+            # AI review
+            ai_review = review_code(clean_code)
 
-                if ai_review.strip():
-                    review_comments.append(f"### File: {filename}\n{ai_review}\n")
+            logging.info(f"AI response for {filename}:\n{ai_review}")
 
-            except Exception as e:
-                logging.error(f"AI review failed for {filename}: {e}")
+            if not ai_review or not ai_review.strip():
+                ai_review = "No major issues found. Code looks good."
+
+            review_comments.append(f"### File: {filename}\n{ai_review}\n")
+
+        except Exception as e:
+            logging.error(f"AI review failed for {filename}: {e}")
 
     final_comment = "\n".join(review_comments)
 
+    # Post comment on PR
     if final_comment:
         try:
             comment_on_pr(repo_name, pr_number, final_comment)
@@ -91,10 +108,7 @@ async def github_webhook(request: Request):
         except Exception as e:
             logging.error(f"Failed to post comment on PR #{pr_number}: {e}")
             return {"status": "Failed to post comment"}
-
     else:
         logging.info(f"No Python changes to review on PR #{pr_number}")
 
     return {"status": "Webhook processed successfully"}
-
-
