@@ -49,3 +49,7 @@ def division(a, b):
 
 def substraction(a, b):
     return a -b
+
+def average(a, b):
+    return (a + b)/2
+

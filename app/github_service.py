@@ -51,14 +51,3 @@ def comment_on_pr(repo_name, pr_number, comment):
     pr.create_issue_comment(comment)
 
 
-# Example utility functions (for testing)
-def add(a, b):
-    return a + b
-
-
-def multiplication(a, b):
-    return a * b
-
-
-def division(a, b):
-    return a / b
